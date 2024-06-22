@@ -1,0 +1,19 @@
+name: llm-datatypes
+channels:
+  - pytorch
+  - anaconda
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.9
+  - pytorch-cuda=12.1
+  - pytorch
+  - datasets
+  - schema
+  - pip:
+      - py-cpuinfo
+      - opencv-python
+      - scikit-learn
+      - pycocotools
+      - intel_extension_for_transformers==1.3
+      - git+https://github.com/EleutherAI/lm-evaluation-harness.git@cc9778fbe4fa1a709be2abed9deb6180fd40e7e2
