@@ -19,8 +19,8 @@ INTERPRETER run_clm_no_trainer.py \
     --model ${MODEL_PATH} --batch_size=4 \
     --output_dir="./results/$(basename ${MODEL_PATH})_${VARIABLE}_${TIMESTAMP}" \
     --tasks lambada_openai hellaswag winogrande piqa boolq arc_challenge \
-    --quantize --woq_enable_activation --sq \
-    --woq_bits=4 --woq_dtype=${VARIABLE} --woq_group_size=128 --woq_algo=RTN \
+    --quantize --enable_activation --sq \
+    --bits=4 --dtype=${VARIABLE} --group_size=128 --algo=RTN \
 
 # Delete the quantized model
 rm -rf "./results/$(basename ${MODEL_PATH})_${VARIABLE}_${TIMESTAMP}"

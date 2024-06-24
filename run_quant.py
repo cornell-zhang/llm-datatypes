@@ -43,17 +43,17 @@ parser.add_argument("--tasks", nargs='+', default=["lambada_openai",
 parser.add_argument("--sq", action="store_true")
 parser.add_argument("--alpha", default=0.5, help="Smooth quant parameter.")
 # ============WeightOnly configs===============
-parser.add_argument("--woq_enable_activation", action="store_true")
-parser.add_argument('--woq_activation_quantile', type=float, default=1.0,
+parser.add_argument("--enable_activation", action="store_true")
+parser.add_argument('--activation_quantile', type=float, default=1.0,
                     help='Clipping quantile for dynamic activation quantization.')
-parser.add_argument("--woq_algo", default="RTN", choices=['RTN', 'AWQ', 'TEQ', 'GPTQ'],
+parser.add_argument("--algo", default="RTN", choices=['RTN', 'AWQ', 'TEQ', 'GPTQ'],
                     help="Weight-only parameter.")
-parser.add_argument("--woq_bits", type=int, default=8)
-parser.add_argument("--woq_dtype", type=str, default='int')
-parser.add_argument("--woq_group_size", type=int, default=-1)
-parser.add_argument("--woq_scheme", default="sym")
-parser.add_argument("--woq_enable_mse_search", action="store_true")
-parser.add_argument("--woq_enable_full_range", action="store_true")
+parser.add_argument("--bits", type=int, default=8)
+parser.add_argument("--dtype", type=str, default='int')
+parser.add_argument("--group_size", type=int, default=-1)
+parser.add_argument("--scheme", default="sym")
+parser.add_argument("--enable_mse_search", action="store_true")
+parser.add_argument("--enable_full_range", action="store_true")
 # =============GPTQ configs====================
 parser.add_argument("--gptq_actorder", action="store_true",
                     help="Whether to apply the activation order GPTQ heuristic.")
@@ -85,7 +85,7 @@ class Evaluator:
 
     @torch.no_grad()
     def tokenize_function(self, examples):
-        if args.woq_algo in ['TEQ']:
+        if args.algo in ['TEQ']:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             example = self.tokenizer(examples["text"], padding="max_length", max_length=self.pad_max)
@@ -104,7 +104,7 @@ class Evaluator:
             pad_len = self.pad_max - input_ids.shape[0]
             last_ind.append(input_ids.shape[0] - 1)
             if self.is_calib:
-                if args.woq_algo != 'GPTQ':
+                if args.algo != 'GPTQ':
                     input_ids = input_ids[:self.pad_max] if len(input_ids) > self.pad_max else input_ids
             else:
                 input_ids = pad(input_ids, (0, pad_len), value=self.pad_val)
@@ -150,7 +150,7 @@ class Evaluator:
 def get_user_model():
     from transformers import AutoModelForCausalLM, AutoTokenizer
     torchscript = False
-    if args.sq or args.woq_algo in ['AWQ', 'TEQ']:
+    if args.sq or args.algo in ['AWQ', 'TEQ']:
         torchscript = True
     user_model = AutoModelForCausalLM.from_pretrained(
         args.model,
@@ -161,7 +161,7 @@ def get_user_model():
     user_model = user_model.float()
 
     # Set model's seq_len when GPTQ calibration is enabled.
-    if args.woq_algo == 'GPTQ':
+    if args.algo == 'GPTQ':
         user_model.seqlen = args.gptq_pad_max_length
 
     # to channels last
@@ -233,11 +233,11 @@ if args.quantize:
     op_type_dict = {
         '.*': {  # re.match
             "weight": {
-                'dtype' : args.woq_dtype,
-                'bits': args.woq_bits,  # 1-8 bits
-                'group_size': args.woq_group_size,  # -1 (per-channel)
-                'scheme': args.woq_scheme,  # sym/asym
-                'algorithm': args.woq_algo,  # RTN/AWQ/TEQ
+                'dtype' : args.dtype,
+                'bits': args.bits,  # 1-8 bits
+                'group_size': args.group_size,  # -1 (per-channel)
+                'scheme': args.scheme,  # sym/asym
+                'algorithm': args.algo,  # RTN/AWQ/TEQ
             },
         },
     }
@@ -246,8 +246,8 @@ if args.quantize:
         'embed_out': {"weight": {'dtype': 'fp32'}, },  # for dolly_v2
     }
     recipes["rtn_args"] = {
-        "enable_mse_search": args.woq_enable_mse_search,
-        "enable_full_range": args.woq_enable_full_range,
+        "enable_mse_search": args.enable_mse_search,
+        "enable_full_range": args.enable_full_range,
     }
     recipes['gptq_args'] = {
         'percdamp': args.gptq_percdamp,
@@ -259,7 +259,7 @@ if args.quantize:
     }
     # GPTQ: use assistive functions to modify calib_dataloader and calib_func
     # TEQ: set calib_func=None, use default training func as calib_func
-    if args.woq_algo in ["GPTQ", "TEQ"]:
+    if args.algo in ["GPTQ", "TEQ"]:
         calib_func = None
 
     conf = PostTrainingQuantConfig(
@@ -277,9 +277,7 @@ if args.quantize:
         eval_func=eval_func,
     )
 
-    # NOTE: Too complex to modify the actual traverse code and current W+A quant uses PyTorch models
-    # Slightly strange to call it `woq` with activation quantization but it refers to the modules
-    if args.woq_enable_activation:
+    if args.enable_activation:
         for name, module in q_model.named_modules():
             if isinstance(module, torch.nn.Linear):
                 if args.sq:
@@ -288,9 +286,9 @@ if args.quantize:
                     sq_scales = layers_to_scales[short_name] if short_name in layers_to_scales else None
                 else:
                     sq_scales = None
-                wrapper_module = LookupLinear(orig_layer=module, num_bits=args.woq_bits, dtype=args.woq_dtype,
-                                            group_size=args.woq_group_size, scheme=args.woq_scheme,
-                                            sq_scales=sq_scales, quantile=args.woq_activation_quantile)
+                wrapper_module = LookupLinear(orig_layer=module, num_bits=args.bits, dtype=args.dtype,
+                                            group_size=args.group_size, scheme=args.scheme,
+                                            sq_scales=sq_scales, quantile=args.activation_quantile)
                 set_module(q_model, name, wrapper_module)
     user_model = q_model
 else:

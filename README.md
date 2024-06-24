@@ -2,12 +2,9 @@
 By [Jordan Dotzel](https://jordandotzel.com), [Yuzong Chen](https://yc2367.github.io/), Bahaa Kotb, Sushma Prasad, Gang Wu, Sheng Li, [Mohamed S. Abdelfattah](https://www.mohsaied.com/), [Zhiru Zhang](https://www.csl.cornell.edu/~zhiruz/index.html)
 
 
-![graphical_abstract](/assets/quantized_values.png)
+## Introduction
 
-
-## Abstract
-
-The increasing size of large language models (LLMs) traditionally requires low-precision integer formats to meet strict latency and power demands. Yet recently, alternative formats such as Normal Float (NF4) have increased model accuracy at the cost of increased chip area. In this work, we first conduct a large-scale analysis of LLM weights and activations across 30 networks and conclude that most distributions follow a Student’s t-distribution. We then derive a new theoretically optimal format, Student Float (SF4), that improves over NF4 across modern LLMs, for example increasing the average accuracy on LLaMA2-7B by 0.76% across tasks. Using this format as a high-accuracy reference, we then propose augmenting E2M1 with two variants of supernormal support for higher model accuracy. Finally, we explore the quality and efficiency frontier across 11 datatypes by evaluating their model accuracy and hardware complexity. We discover a Pareto curve composed of INT4, E2M1, and E2M1 with supernormal support, which offers a continuous tradeoff between model accuracy and chip area. For example, E2M1 with super-normal support increases the accuracy of Phi-2 by up to 2.19% with 1.22% area overhead, enabling more LLM-based applications to be run at four bits.
+This is the corresponding code the for the ICML paper  *Learning from Students: Applying t-Distributions to Explore Accurate and Efficient Formats for LLMs*. This work first conducts a large-scale analysis of LLM weights and activations across 30 networks and concludes that most distributions follow a Student’s t-distribution. It then derives a new theoretically optimal format, Student Float (SF4), that improves over NF4 across modern LLMs. Then, using this format as a high-accuracy reference, it proposes augmenting E2M1 with two variants of supernormal support for higher model accuracy. Finally, it explores the quality and efficiency frontier across 11 datatypes by evaluating their model accuracy and hardware complexity. It discovers a Pareto curve composed of INT4, E2M1, and E2M1 with supernormal support, which offers a continuous tradeoff between model accuracy and chip area.
 
 
 ## Getting Started
@@ -22,7 +19,7 @@ conda activate llm-datatypes
 Then, use `run_quant.py` to run the quantization and evaluation on desired tasks. For example:
 
 ```bash
-python run_quant.py --model facebook/opt-125m  --quantize --batch_size=64 --tasks lambada_openai --woq_bits=4 --woq_dtype=sf4_5 --woq_group_size=128 --woq_algo=RTN
+python run_quant.py --model facebook/opt-125m  --quantize --batch_size=64 --tasks lambada_openai --bits=4 --dtype=sf4_5 --group_size=128 --algo=RTN
 ```
 
 With access to a slurm server, run the `run_quant_slurm.sh` script for batched evaluation:
@@ -33,30 +30,33 @@ slurm batch run_quant_slurm.sh
 
 ## Evaluation
 
-Use run_quant.py to quantize and evaluate the model across common datasets. It includes support for weight and activation quantization, including with GPTQ[1] and SmoothQuant[2].
+Use `run_quant.py` to quantize and evaluate the model across common datasets. It includes support for weight and activation quantization, including with GPTQ[1] and SmoothQuant[2]. In addition, it has arguments that can specify the models, the evaluation tasks, and quantization settings. Below are the most important arguments, but all can be found in the argparse section in `run_quant.py`.
 
 ### Important Arguments
 
-- `--quantize`: Enables model quantization.
-- `--model`: Specifies the model to use (default: `EleutherAI/gpt-j-6b`).
-- `--device`: Defines the device to use (default: `cuda:0`).
-- `--seed`: Seed for sampling calibration data (default: `42`).
-- `--tasks`: List of tasks for accuracy validation (default: `["lambada_openai", "hellaswag", "winogrande", "piqa", "wikitext"]`).
+- `quantize`: Enables model quantization.
+- `model`: Specifies the model to use (default: `EleutherAI/gpt-j-6b`).
+- `device`: Defines the device to use (default: `cuda:0`).
+- `seed`: Seed for sampling calibration data (default: `42`).
+- `tasks`: List of tasks for accuracy validation (default: `["lambada_openai", "hellaswag", "winogrande", "piqa", "wikitext"]`).
 
-#### SmoothQuant Arguments
-- `--sq`: Enables SmoothQuant.
-- `--alpha`: SmoothQuant parameter (default: `0.5`).
+#### SmoothQuant
+SmoothQuant can be used to increase the accuracy of models with weight and activation quantization. The `alpha` argument allows balancing the quantization error on the weights and activations.
 
-#### Weight Only Quantization (WOQ) Arguments
-- `--woq_enable_activation`: Enables activation quantization.
-- `--woq_activation_quantile`: Clipping quantile for dynamic activation quantization (default: `1.0`).
-- `--woq_algo`: Specifies the weight-only quantization algorithm (default: `RTN`, choices: `RTN`, `AWQ`, `TEQ`, `GPTQ`).
-- `--woq_bits`: Number of bits for quantization (default: `8`).
-- `--woq_group_size`: Group size for quantization (default: `-1`).
-- `--woq_dtype`: Data type for quantization (default: `int`).
+- `sq`: Enables SmoothQuant.
+- `alpha`: SmoothQuant parameter (default: `0.5`).
 
-#### Supported Datatypes
-Set `--woq_dtype` to select the desired datatype. The full list is provided in `neural-compressor/adapter/torch_utils/weight_only.py`, yet these are the most important 4-bit versions. They are defined as lists of floating-point values so the support can easier be extended.
+#### Quantization
+
+- `enable_activation`: Enables activation quantization.
+- `activation_quantile`: Clipping quantile for dynamic activation quantization (default: `1.0`).
+- `algo`: Specifies the weight-only quantization algorithm (default: `RTN`, choices: `RTN`, `AWQ`, `TEQ`, `GPTQ`).
+- `bits`: Number of bits for quantization (default: `8`).
+- `group_size`: Group size for quantization (default: `-1`).
+- `dtype`: Data type for quantization (default: `int`).
+
+#### Datatypes
+Use the `dtype` argument to select datatypes. Below the most important datatypes are listed, the full list is provided in `neural-compressor/adapter/torch_utils/weight_only.py`. In the code, they are implemented as lists of floating-point values so additional datatypes can be easily experimented with.
 
 - **NF4**: Normal Float (NF4) defined in QLoRA [3]
 
@@ -80,21 +80,18 @@ Set `--woq_dtype` to select the desired datatype. The full list is provided in `
 - **APOT4_SP**:
   A 4-bit Additive-Powers-of-Two format with super-precision.
 
-## References
-
-1. **GPTQ**: \
-   Frantar, E., Ashkboos, S., Hoefler, T., & Alistarh, D. GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers. \*ICLR 2023\*. [https://arxiv.org/abs/2210.17323](https://arxiv.org/abs/2210.17323)
-
-2. **SmoothQuant**: \
-   Xiao, G., Lin, J., Seznec, M., Wu, H., Demouth, J., & Han, S. SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models. \*ICML 2024\*. [https://arxiv.org/abs/2211.10438](https://arxiv.org/abs/2211.10438)
-
-3. **QLoRA**: \
-   Dettmers, T., Pagnoni, A., Holtzman, A., & Zettlemoyer, L. QLoRA: Efficient Finetuning of Quantized LLMs. \*NeurIPS 2023\*. [https://arxiv.org/abs/2305.14314](https://arxiv.org/abs/2305.14314)
-
-
 ## Acknowledgements
 
 This code was built from the Intel Neural Compressor [codebase](https://github.com/intel/neural-compressor).
+
+## References
+
+1. Frantar, E., Ashkboos, S., Hoefler, T., & Alistarh, D. GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers. \*ICLR 2023\*. [https://arxiv.org/abs/2210.17323](https://arxiv.org/abs/2210.17323)
+
+2. Xiao, G., Lin, J., Seznec, M., Wu, H., Demouth, J., & Han, S. SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models. \*ICML 2024\*. [https://arxiv.org/abs/2211.10438](https://arxiv.org/abs/2211.10438)
+
+3. Dettmers, T., Pagnoni, A., Holtzman, A., & Zettlemoyer, L. QLoRA: Efficient Finetuning of Quantized LLMs. \*NeurIPS 2023\*. [https://arxiv.org/abs/2305.14314](https://arxiv.org/abs/2305.14314)
+
 
 ## Citation
 ```
