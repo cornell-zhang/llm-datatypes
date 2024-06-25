@@ -2,6 +2,10 @@
 By [Jordan Dotzel](https://jordandotzel.com), [Yuzong Chen](https://yc2367.github.io/), Bahaa Kotb, Sushma Prasad, Gang Wu, Sheng Li, [Mohamed S. Abdelfattah](https://www.mohsaied.com/), [Zhiru Zhang](https://www.csl.cornell.edu/~zhiruz/index.html)
 
 
+<div style="text-align: center;">
+    <img src="figures/quantized_values.png" width="60%">
+</div>
+
 ## Introduction
 
 This is the corresponding code the for the ICML paper  *Learning from Students: Applying t-Distributions to Explore Accurate and Efficient Formats for LLMs*. This work first conducts a large-scale analysis of LLM weights and activations across 30 networks and concludes that most distributions follow a Student’s t-distribution. It then derives a new theoretically optimal format, Student Float (SF4), that improves over NF4 across modern LLMs. Then, using this format as a high-accuracy reference, it proposes augmenting E2M1 with two variants of supernormal support for higher model accuracy. Finally, it explores the quality and efficiency frontier across 11 datatypes by evaluating their model accuracy and hardware complexity. It discovers a Pareto curve composed of INT4, E2M1, and E2M1 with supernormal support, which offers a continuous tradeoff between model accuracy and chip area.
